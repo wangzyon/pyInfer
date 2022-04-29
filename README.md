@@ -1,11 +1,11 @@
-![](images\head.png)
+![](images/head.png)
 
 
 # 概述
 
 异步推理服务，基本流程：
 
-![](images\async_infer.svg)
+![](images/async_infer.svg)
 
 1. 服务并发：通过http访问aiohttp注册的路由`route func`，`route func`为异步协程，可并发访问；
 2. 异步推理：`route func`解析请求参数`input`作为`forward`输入，`forward`将输入封装成job，并立即返回未完成工作`future`；`route func`通过await挂起，直到协程`future`返回结果；
