@@ -56,7 +56,7 @@ async def async_function():
 try:
     async_function().send(None)
 except StopIteration as e:
-    print(e.value)   
+    value = e.value   
 # 等价于
 value = await async_function()
 # 异步生成器可由await for获取结果
@@ -64,7 +64,7 @@ async def async_generator():
     for i in range(10):
     	yield i
         
-async for v in async_generator():
+await for v in async_generator():
     print(v)
 ```
 
