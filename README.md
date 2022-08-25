@@ -36,11 +36,11 @@ pip install fastapi[all]
 本项目中使用两种future，对应两种job：
 
 ```python
-# 同步非阻塞，start_job使用，同步等待模型启动成功；
+# 同步非阻塞，在普通函数中使用；本设计中使用同步非阻塞future创建start_job，同步等待模型启动成功；
 from concurrent import futures
 future = futures.Future()
 
-# 异步非阻塞，infer job, 配合await使用, 异步等待推理结果；
+# 异步非阻塞，在async异步函数中使用；本设计中使用异步非阻塞future作为infer job, 配合await使用, 异步等待推理结果；
 import asyncio
 loop = asyncio.get_running_loop()
 future = loop.create_future()
