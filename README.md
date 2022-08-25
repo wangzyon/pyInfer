@@ -13,7 +13,7 @@
 
 推理过程中数据流动：
 
-![](doc\数据流动.svg)
+![](doc/数据流动.svg)
 
 1. infer通过commit将http输入封装成job；
 2. job记录当前推理任务的输入input、输出output；
@@ -57,7 +57,7 @@ event_loop.call_soon_threadsafe(job.future.set_result, result)
 
 独占资源分配器实现两个功能：内存防溢出、预处理和推理解耦；
 
-![](doc\独占资源分配器.svg)
+![](doc/独占资源分配器.svg)
 
 由job结构和数据流动可知，要想将job加入任务队列必须经过预处理preprocess，而预处理必须申请独占数据资源（python类对象），才能够存储预处理结果和模型推理结果，因此，设计独占资源分配器，可以巧妙控制整个推理的进行；
 
@@ -88,7 +88,7 @@ uvicorn app:app
 
 上传workspace目录下balloon.jpg；
 
-![](doc\demo_api.png)
+![](doc/demo_api.png)
 
 # 关于异步
 
