@@ -1,45 +1,52 @@
-import asyncio
-from aiohttp import web
-import infer
+import cv2
+import pickle
+import numpy as np
+from fastapi import FastAPI, UploadFile, File
 
-routes = web.RouteTableDef()
+from core.build import build_infer
+from core import DetectionInfer
+from appConfigs import detection_infer_cfg, log_cfg
 
-infers = {"general_image_infer": infer.create_general_image_infer()}
+app = FastAPI()
 
-
-# 服务状态判断
-@routes.get('/health')
-async def health(request):
-    return web.json_response({'START': 'UP'})
+infers = {}
 
 
-# 推理
-@routes.post('/generalImage/infer')
-async def general_image_infer(request):
-    recv = await request.json()  # post json
-    infer = infers.get("general_image_infer").bind_event_loop(asyncio.get_running_loop())  # 获取异步推理器并绑定当前事件循环
-    if infer is not None:
-        futures = infer.forward(recv["SOURCE_IMAGE"])
-        results = []
-        for future in futures:
-            results.append(await future)
-        result = {"STATUS": 200, "TASKID": recv.get("TASKID", ""), "LOG": "", "RESULTS": results}
+@app.on_event("startup")
+async def startup_event():
+    infers["detection_infer"] = build_infer(detection_infer_cfg, log_cfg=log_cfg)
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    for infer in infers.values():
+        infer.destory()
+
+
+async def decode_upload_img(file: UploadFile = File(...)):
+    buffer = await file.read()
+    buffer = np.frombuffer(buffer, np.uint8)
+    img = cv2.imdecode(buffer, cv2.IMREAD_COLOR).astype(np.float32)
+    return img
+
+
+@app.get('/health', tags=["服务状态"], summary="infer one image")
+async def health():
+    return {'START': 'UP'}
+
+
+@app.post('/infer', response_model=DetectionInfer.Output, tags=["推理"], summary="infer one image")
+async def infer(img_file: UploadFile = File(...)):
+    """
+    推理
+    \f
+    :param img_file: 推理时图像输入.
+    """
+    input = DetectionInfer.Input.parse_obj(dict(filename=img_file.filename, image=await decode_upload_img(img_file)))
+    infer = infers.get("detection_infer")
+    future = infer.commit(input)
+    if future is None:
+        return future
     else:
-        result = {"STATUS": 500, "TASKID": recv.get("TASKID", ""), "LOG": ""}
-    return web.json_response(result)
-
-
-async def init(loop, host, port):
-    app = web.Application()
-    app.add_routes(routes)
-    app_runner = web.AppRunner(app)
-    await app_runner.setup()
-    server = await loop.create_server(app_runner.server, host, port)
-    print(f'======== Running on http://{host}:{port} ========')
-    return server
-
-
-if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(init(loop, host='0.0.0.0', port=11050))
-    loop.run_forever()
+        return await future
+    #return await future if future is None else await future

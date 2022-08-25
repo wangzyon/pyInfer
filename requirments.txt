@@ -1,0 +1,4 @@
+colorlog
+numpy
+fastapi[all]
+opencv-python
