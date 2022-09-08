@@ -2,3 +2,6 @@ colorlog
 numpy
 fastapi[all]
 opencv-python
+Sharply
+uvicorn
+pycocotools

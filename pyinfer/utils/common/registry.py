@@ -14,9 +14,14 @@ class Register():
 
         return _register
 
+    def build(self, cfg):
+        module_name = cfg.pop('type')
+        return self.get(module_name)(**dict(cfg))
+
     def get(self, module_name):
         return self.module_dict.get(module_name)
 
 
-INFER = Register("INFER")
-ENGINE = Register("ENGINE")
+INFERS = Register("INFERS")
+ENGINES = Register("ENGINES")
+HOOKS = Register("HOOKS")

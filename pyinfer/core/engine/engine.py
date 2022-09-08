@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABCMeta
-from .registry import ENGINE
-from .logger import Logger
 import numpy as np
+from ...utils.common.registry import ENGINES
+from ...utils.common.logger import Logger
 
 __all__ = ["MMDetectionInferEngine"]
 
@@ -14,8 +14,8 @@ except:
 
 class InferEngine(metaclass=ABCMeta):
 
-    def __init__(self, log=None, **kwargs) -> None:
-        self.log = Logger() if log is None else log
+    def __init__(self, logger=None, **kwargs) -> None:
+        self.logger = Logger() if logger is None else logger
 
     @abstractmethod
     def build(self):
@@ -26,12 +26,12 @@ class InferEngine(metaclass=ABCMeta):
         pass
 
 
-@ENGINE.register_module()
+@ENGINES.register_module()
 class MMDetectionInferEngine(InferEngine):
 
     def build(self, model_file, config_file, device):
         if not MMDETECTION_ENABLE:
-            self.log.fatal("Cannot import mmdet, build model failed.")
+            self.logger.fatal("Cannot import mmdet, build model failed.")
         self.model = init_detector(config_file, model_file, device=device)
         return True
 
@@ -39,7 +39,7 @@ class MMDetectionInferEngine(InferEngine):
         """
         对于推理输入，batch_input格式为(batch_size, height, width, channel),需要将batch_input转换为mmdetection输入格式
         mmdetection输入为List[input], 其中input为(height, width, channel)
-        
+
         对于推理输出：
         mmdetection results格式为:
         [
@@ -50,7 +50,7 @@ class MMDetectionInferEngine(InferEngine):
             ]
         ]
         第一层索引i表示第i个样本, 第二层索引j为类别label, 第三层数组shape为(n,5), n表示输出bbox数量；
-        
+
         将mmdetection results格式转换为如下格式：
         [
             [
@@ -71,18 +71,10 @@ class MMDetectionInferEngine(InferEngine):
             bboxes = []
             for label, bbox_array in enumerate(input_i_result):
                 bbox_num = len(bbox_array)
-                bbox_array = bbox_array.astype(np.float)    # 避免出现其他数据类型，影响网络序列化传输
+                # 避免出现其他数据类型，影响网络序列化传输
+                bbox_array = bbox_array.astype(np.float)
                 label_array = np.zeros((bbox_num, 1)) * label
                 bbox_array = np.concatenate([bbox_array, label_array], axis=1)
                 bboxes.extend(bbox_array.tolist())
             new_results.append(bboxes)
         return new_results
-
-
-class MMPoseDetectionInferEngine(InferEngine):
-
-    def build(self, model_file, config_file):
-        pass
-
-    def forward(self, job):
-        pass

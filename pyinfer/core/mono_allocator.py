@@ -1,7 +1,7 @@
 import threading
 import weakref
 import time
-from .logger import Logger
+from ..utils.common.logger import Logger
 
 __all__ = ["MonoAllocator"]
 
@@ -28,7 +28,7 @@ class MonoAllocator():
 
     def __init__(self, size: int) -> None:
         """
-        params:
+        :param
             size      : 独占数据资源数量，建议设置为batch_size*2；
             self.datas   : 独占数据资源列表；
             self._num_avail : 剩余资源数量；
@@ -46,7 +46,7 @@ class MonoAllocator():
         self._lock = threading.Lock()
         self._cond = threading.Condition(self._lock)
         self._cond_exit = threading.Condition(self._lock)
-        self._log = Logger()
+        self.logger = Logger()
 
     def query(self, timeout=10):
         """请求独占数据资源"""
@@ -69,7 +69,7 @@ class MonoAllocator():
             # 返回请求得到的独占数据资源
             for mono_data in self.datas:
                 if mono_data._available:
-                    self._log.debug(f"occupy {mono_data.name}")
+                    self.logger.debug(f"occupy {mono_data.name}")
                     mono_data._available = False
                     self._num_avail -= 1
                     return mono_data
@@ -83,7 +83,7 @@ class MonoAllocator():
             mono_data.output = None
             self._cond.notify_all()
             time.sleep(1e-4)
-        self._log.debug(f"release {mono_data.name}")
+        self.logger.debug(f"release {mono_data.name}")
 
     def __del__(self):
         """对象析构时调用"""
@@ -95,7 +95,7 @@ class MonoAllocator():
             # 等待所有等待线程退出wait状态
             self._cond_exit.wait_for(lambda: (self._num_thread_wait == 0))
 
-        self._log.info("MonoAllocator is destoryed.")
+        self.logger.info("MonoAllocator is destoryed.")
 
     def destory(self):
         self.__del__()
