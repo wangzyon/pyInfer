@@ -130,7 +130,7 @@ python 中提供两种未完成计算 `future`，`concurrent.futures`和 `asynci
 切换路径至根目录下：
 
 ```bash
-python app.py
+python app.py ./applications/balloon/configs/balloon.py
 ```
 
 3. 测试接口
