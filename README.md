@@ -109,20 +109,21 @@ python 中提供两种未完成计算 `future`，`concurrent.futures`和 `asynci
 
 # 测试
 
-测试mmdetection训练模型：
+部署mmdetection训练模型：
 
-1. 安装mmdetection和mmcv
-2. 下载balloon目标检测推理配置文件、模型文件，存放至`applications`目录下；[下载地址](https://pan.baidu.com/s/1Y9KZVFuUB21vfXinZ60xDg )，提取码：ctiv；
+1. 安装mmdetection和mmcv；
+1. 下载balloon目标检测配置文件和模型文件至`applications`目录下；
+
+[下载地址](https://pan.baidu.com/s/1CgXf7Q59BtgFL8aOAFGouA)，提取码：2sh3
 
 ```
-├─applications
-│  └─balloon
-│      ├─configs
-│      │      balloon.py
-│      │
-│      └─models
-│              model.pth
-│              yolox_s_8x8_300e_coco.py
+applications/
+    balloon/
+        configs/
+        	balloon.py
+        models/
+       		yolox_s_8x8_300e_coco.py
+        	model.pth
 ```
 
 2. 启动服务
@@ -130,7 +131,7 @@ python 中提供两种未完成计算 `future`，`concurrent.futures`和 `asynci
 切换路径至根目录下：
 
 ```bash
-python app.py ./applications/balloon/configs/balloon.py
+python app.py
 ```
 
 3. 测试接口

@@ -2,4 +2,5 @@ models
 __pycache__/
 .vscode
 .pth
+.onnx
 doc/ori
