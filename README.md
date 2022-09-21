@@ -109,21 +109,14 @@ python 中提供两种未完成计算 `future`，`concurrent.futures`和 `asynci
 
 # 测试
 
-部署mmdetection训练模型：
-
-1. 安装mmdetection和mmcv；
-1. 下载balloon目标检测配置文件和模型文件至`applications`目录下；
+1. 下载 models：models 包含 mmdetection 框架下，balloon 数据集的目标检测模型文件；
 
 [下载地址](https://pan.baidu.com/s/1CgXf7Q59BtgFL8aOAFGouA)，提取码：2sh3
 
 ```
-applications/
-    balloon/
-        configs/
-        	balloon.py
-        models/
-       		yolox_s_8x8_300e_coco.py
-        	model.pth
+models/
+	yolox_s_8x8_300e_coco.py
+	model.pth
 ```
 
 2. 启动服务

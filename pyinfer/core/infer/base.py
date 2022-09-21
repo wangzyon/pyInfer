@@ -74,49 +74,7 @@ class Infer(metaclass=ABCMeta):
         """后处理"""
         pass
 
-    def work(self, start_job: Job):
-        """推理"""
 
-        # 1.推理引擎创建并初始化
-        engine = build_engine(self.start_params.engine, logger=self.logger)
-        if engine is None:
-            start_job.future.set_result(False)  # 初始化推理引擎失败，退出推理消费者线程
-            return
-
-        for hook_cfg in self.start_params.hooks:
-            hook = build_hook(hook_cfg)
-            if hook is None:
-                start_job.future.set_result(False)  # 初始化钩子失败，退出推理消费者线程
-                return
-            self._hooks.append(hook)
-
-        # 启动成功
-        start_job.future.set_result(True)
-
-        while self._run:
-            # 2.取任务：从任务队里中取出预处理完成的job
-            fetch_jobs = self.wait_for_jobs()
-            if len(fetch_jobs) == 0:  # 当推理停止时，fetch_jobs返回为空
-                for job in self._job_queue:
-                    job.future.set_result(job.output)  # 未完成job推理结果置None
-                break
-
-            # 3.组合batch
-            batch_input = np.stack([job.mono_data.input for job in fetch_jobs])
-            # 4.推理
-            batch_output = engine.forward(batch_input)
-            self.logger.info(
-                f"Infer batch size({len(fetch_jobs)}), wait jobs({len(self._job_queue)})")
-            for index, job in enumerate(fetch_jobs):
-                # 5.取模型输出结果：engine->job.mono_data.output
-                job.mono_data.output = batch_output[index]
-                # 6.后处理，job.mono_data.output->postprocess->job.output
-                job = self.postprocess(job)
-                # 7.释放独占数据资源
-                job.mono_data.release()
-                job.mono_data = None
-                # 8.返回
-                job.future.set_result(job.output)
 
     def commit(self, inp: Union[Input, List[Input]]):
         """
@@ -129,6 +87,7 @@ class Infer(metaclass=ABCMeta):
         else:
             future = self.__commit(inp)
         return future
+
 
     def __commit(self, inp: Input):
         "提交单个任务"
@@ -209,7 +168,51 @@ class Infer(metaclass=ABCMeta):
             fetch_jobs = self._job_queue[:max_size]
             self._job_queue = self._job_queue[max_size:]
             return fetch_jobs
+        
+    def work(self, start_job: Job):
+        """推理"""
 
+        # 1.推理引擎创建并初始化
+        engine = build_engine(self.start_params.engine, device =self.start_params.device , logger=self.logger)
+        if engine is None:
+            start_job.future.set_result(False)  # 初始化推理引擎失败，退出推理消费者线程
+            return
+
+        for hook_cfg in self.start_params.hooks:
+            hook = build_hook(hook_cfg)
+            if hook is None:
+                start_job.future.set_result(False)  # 初始化钩子失败，退出推理消费者线程
+                return
+            self._hooks.append(hook)
+
+        # 启动成功
+        start_job.future.set_result(True)
+
+        while self._run:
+            # 2.取任务：从任务队里中取出预处理完成的job
+            fetch_jobs = self.wait_for_jobs()
+            if len(fetch_jobs) == 0:  # 当推理停止时，fetch_jobs返回为空
+                for job in self._job_queue:
+                    job.future.set_result(job.output)  # 未完成job推理结果置None
+                break
+
+            # 3.组合batch
+            batch_input = np.stack([job.mono_data.input for job in fetch_jobs])
+            # 4.推理
+            batch_output = engine.forward(batch_input)
+            self.logger.info(
+                f"Infer batch size({len(fetch_jobs)}), wait jobs({len(self._job_queue)})")
+            for index, job in enumerate(fetch_jobs):
+                # 5.取模型输出结果：engine->job.mono_data.output
+                job.mono_data.output = batch_output[index]
+                # 6.后处理，job.mono_data.output->postprocess->job.output
+                self.postprocess(job)
+                # 7.释放独占数据资源
+                job.mono_data.release()
+                job.mono_data = None
+                # 8.返回
+                job.future.set_result(job.output)
+                
     def __del__(self):
         with self._cond:
             self._run = False

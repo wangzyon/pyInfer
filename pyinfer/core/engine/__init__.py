@@ -1,1 +1,1 @@
-from .engine import MMDetectionInferEngine
+from .engine import OnnxInferEngine

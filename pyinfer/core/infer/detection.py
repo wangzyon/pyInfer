@@ -11,8 +11,9 @@ from ...utils.detection.nms import cpu_nms
 from ...utils.detection.bbox import QuadrangleBBox
 from ...utils.functional.slice import slice_one_image
 from ...utils.functional.traits import WarpAffineTraits
+from ..build import INFERS
 
-
+@INFERS.register_module()
 class DetectionInfer(Infer):
     class Input(BaseModel):
         filename: str = Field(describe="图像文件名称")
@@ -38,7 +39,7 @@ class DetectionInfer(Infer):
     class StartParams(BaseModel):
         engine: Dict
         confidence_threshold: float = Field(gt=0, describe="置信度阈值")
-        nms_threshold: float = Field(gt=0, describe="NMS阈值")
+        nms_threshold: float = Field(gt=0.0, describe="NMS阈值")
         max_batch_size: int = Field(gt=0, describe="推理时最大batch_size")
         max_object: int = Field(gt=0, describe="图像包含的最大目标数量")
         width: int = Field(gt=0, describe="推理时送入网络的图像宽度")
@@ -48,6 +49,7 @@ class DetectionInfer(Infer):
         timeout: int = Field(default=10, describe="提交job的最大等待时间，若超时，则提交任务失败.")
         hooks: List[Dict] = Field(description="钩子", default=[])
         slice: bool = Field(description="是否启动分片推理模式", default=False)
+        device: str = Field(description="推理设备", default="cuda:0")
         # 分片推理模式下需要配置的参数
         subsize: int = Field(default=640, describe="瓦片大小")
         rate: int = Field(default=1, describe="大图resize系数")
@@ -126,7 +128,46 @@ class DetectionInfer(Infer):
         # mono_data.input存储预处理结果，作为模型推理的输入
         job.mono_data.input = job.traits(job.input.image)
         return True
+    
+    def decode(self, job):
+        bboxes = []
+        # 从独占数据资源中取出模型推理结果, results=List[bbox]格式，其中bbox为[left,top,right,width, height, confidence, *scores]
+        results = job.mono_data.output
+        for result in results:
+            xc, yc, width, height, confidence, *scores = result
+            if confidence < self.start_params.confidence_threshold:
+                continue
+            
+            max_score_index = np.argmax(scores)
+            max_score = scores[max_score_index]
+            if max_score*confidence < self.start_params.confidence_threshold:
+                continue
+            
+            label = max_score_index
+            # 通过逆仿射变换将bbox坐标映射回原图
+            left, top = job.traits.to_src_coord(xc - width/2, yc - height/2)
+            right, bottom = job.traits.to_src_coord(xc + width/2, yc + height/2)
+            labelname = self.start_params.labelnames[label]
+            bbox = QuadrangleBBox(x1=left,
+                                  y1=top,
+                                  x2=right,
+                                  y2=top,
+                                  x3=right,
+                                  y3=bottom,
+                                  x4=left,
+                                  y4=bottom,
+                                  confidence=confidence,
+                                  label=label,
+                                  labelname=labelname,
+                                  keepflag=True)
+            bboxes.append(bbox)
+        return bboxes
+    
+    def nms(self, bboxes:List[QuadrangleBBox]):
+        return cpu_nms(bboxes, self.start_params.nms_threshold)
 
     def postprocess(self, job):
         """后处理"""
-        raise NotImplementedError("postprocess not implemented.")
+        
+        bboxes = self.nms(self.decode(job))
+        job.output = self.Output(bbox_num=len(bboxes), bboxes = bboxes)

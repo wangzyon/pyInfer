@@ -31,8 +31,9 @@ class WarpAffineTraits():
         m2x3_to_dst[1][0] = 0
         m2x3_to_dst[1][1] = self.scale
         m2x3_to_dst[1][2] = -self.scale * self.sy * 0.5 + self.dy * 0.5 + self.scale * 0.5 - 0.5
+        m2x3_to_dst = m2x3_to_dst.astype(np.float32)
 
-        m2x3_to_src = cv2.invertAffineTransform(m2x3_to_dst)
+        m2x3_to_src = cv2.invertAffineTransform(m2x3_to_dst).astype(np.float32)
         return m2x3_to_dst, m2x3_to_src
 
     def __call__(self, src_img: np.ndarray, interpolation=cv2.INTER_LINEAR, pad_value=[114, 114, 114]):

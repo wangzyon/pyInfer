@@ -84,6 +84,11 @@ class QuadrangleBBox(BaseModel):
         self.xcoords = list(map(lambda x: min(max(x, xmin), xmax), self.xcoords))
         self.ycoords = list(map(lambda y: min(max(y, ymin), ymax), self.ycoords))
         return self
+    
+    
+    @property
+    def level(self):
+        return len(set(self.ycoords)) == len(set(self.xcoords)) == 2
 
     def __mul__(self, scalar: Union[int, float]):
         """坐标乘"""

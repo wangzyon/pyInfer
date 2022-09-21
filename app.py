@@ -17,12 +17,12 @@ infers = {}    # 存储初始化后的推理器
 
 class OnlineInferName(str, Enum):
     """app上线的推理服务"""
-    MMDetectionInfer = "MMDetection目标检测推理"
+    DetectionInfer = "Detection目标检测推理"
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="/volume/wzy/project/PyInfer/applications/balloon/configs/balloon.py")
+    parser.add_argument("--config", default="/volume/wzy/project/PyInfer/applications/balloon/config.py")
     return parser.parse_args()
 
 
@@ -87,4 +87,4 @@ async def health():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app)
+    uvicorn.run(app, port = 8805)

@@ -1,2 +1,2 @@
-from .custom import MMDetectionInfer
+from .detection import DetectionInfer
 from .base import Infer

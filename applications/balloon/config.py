@@ -4,12 +4,10 @@ log = dict(filename=None, level="INFO")
 
 
 infer = dict(
-    MMDetectionInfer=dict(
-        type="MMDetectionInfer",
-        engine=dict(type="MMDetectionInferEngine",
-                    model_file="{{ AppFolder }}/balloon/models/model.pth",
-                    config_file="{{ AppFolder }}/balloon/models/yolox_s_8x8_300e_coco.py",
-                    device="cuda:0"),
+    DetectionInfer=dict(
+        type="DetectionInfer",
+        engine=dict(type="OnnxInferEngine",
+                    onnx_file = "{{ AppFolder }}/balloon/yolox.onnx"),
         hooks=[dict(type="DrawBBoxHook",
                     out_dir="{{ WorkspaceFolder }}")],
         confidence_threshold=0.7,
@@ -24,4 +22,5 @@ infer = dict(
         rate=1,
         gap=200,
         padding=True,
-        labelnames=("balloon", )))
+        labelnames=("balloon", ),
+        device="cuda"))

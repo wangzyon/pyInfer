@@ -22,6 +22,8 @@ class MonoAllocator():
             self._allocator = allocator
             self.input = None
             self.output = None
+            self.workspace = None
+            
 
         def release(self):
             self._allocator.release_one(self)

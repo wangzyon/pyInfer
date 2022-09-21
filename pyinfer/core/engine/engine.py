@@ -1,20 +1,18 @@
 from abc import abstractmethod, ABCMeta
 import numpy as np
+import onnxruntime
 from ...utils.common.registry import ENGINES
 from ...utils.common.logger import Logger
 
-__all__ = ["MMDetectionInferEngine"]
+__all__ = ["OnnxInferEngine"]
 
-try:
-    from mmdet.apis import init_detector, inference_detector
-    MMDETECTION_ENABLE = True
-except:
-    MMDETECTION_ENABLE = False
+
 
 
 class InferEngine(metaclass=ABCMeta):
 
-    def __init__(self, logger=None, **kwargs) -> None:
+    def __init__(self, device, logger=None, **kwargs) -> None:
+        self.device = device
         self.logger = Logger() if logger is None else logger
 
     @abstractmethod
@@ -27,54 +25,30 @@ class InferEngine(metaclass=ABCMeta):
 
 
 @ENGINES.register_module()
-class MMDetectionInferEngine(InferEngine):
+class OnnxInferEngine(InferEngine):
+    __providers__ = {"cuda":"CUDAExecutionProvider", "TensorRT":"TensorrtExecutionProvider", "cpu":"TensorrtExecutionProvider"}
 
-    def build(self, model_file, config_file, device):
-        if not MMDETECTION_ENABLE:
-            self.logger.fatal("Cannot import mmdet, build model failed.")
-        self.model = init_detector(config_file, model_file, device=device)
+    def build(self, onnx_file):
+        providers = onnxruntime.get_available_providers()
+        
+        if self.__providers__[self.device] not in providers:
+            self.logger.fatal(f"Onnxruntime lack {self.__providers__[self.device]}, build model failed.")
+            return False
+        
+        self.logger.info(f"onnxruntime use [{self.__providers__[self.device]}], support [{','.join(providers)}]")
+        self.session = onnxruntime.InferenceSession(onnx_file, providers=providers)
+        self.input_names = [inp.name for inp in self.session.get_inputs()]
+        self.output_names = [out.name for out in self.session.get_outputs()]
+        
         return True
 
     def forward(self, batch_input: np.ndarray):
         """
-        对于推理输入，batch_input格式为(batch_size, height, width, channel),需要将batch_input转换为mmdetection输入格式
-        mmdetection输入为List[input], 其中input为(height, width, channel)
-
-        对于推理输出：
-        mmdetection results格式为:
-        [
-            [
-                array([[xmin, ymin, xmax, ymax, confidence],
-                    [xmin, ymin, xmax, ymax, confidence]], dtype=float32),
-                array([[xmin, ymin, xmax, ymax, confidence]], dtype=float32),
-            ]
-        ]
-        第一层索引i表示第i个样本, 第二层索引j为类别label, 第三层数组shape为(n,5), n表示输出bbox数量；
-
-        将mmdetection results格式转换为如下格式：
-        [
-            [
-                [xmin, ymin, xmax, ymax, confidence, label],
-                [xmin, ymin, xmax, ymax, confidence, label],
-                [xmin, ymin, xmax, ymax, confidence, label],
-            ]
-        ]
-        第一层索引i表示第i个样本, 第二层索引j为第i个样本的第j个bbox 
+        默认onnx单输入单输出
+        
+        batch_input[batch_size, ...]
         """
         # 输入格式转换
-        inputs = [batch_input[i] for i in range(len(batch_input))]
-        results = inference_detector(self.model, inputs)
-
-        # 输出格式转换
-        new_results = []
-        for input_i, input_i_result in enumerate(results):
-            bboxes = []
-            for label, bbox_array in enumerate(input_i_result):
-                bbox_num = len(bbox_array)
-                # 避免出现其他数据类型，影响网络序列化传输
-                bbox_array = bbox_array.astype(np.float)
-                label_array = np.zeros((bbox_num, 1)) * label
-                bbox_array = np.concatenate([bbox_array, label_array], axis=1)
-                bboxes.extend(bbox_array.tolist())
-            new_results.append(bboxes)
-        return new_results
+        batch_input = batch_input.transpose(0,3,1,2)
+        batch_output = self.session.run(self.output_names, {self.input_names[0]:batch_input})[0]
+        return batch_output
